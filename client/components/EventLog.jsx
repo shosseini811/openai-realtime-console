@@ -3,8 +3,16 @@ import { useState } from "react";
 
 function Event({ event, timestamp }) {
   const [isExpanded, setIsExpanded] = useState(false);
-
   const isClient = event.event_id && !event.event_id.startsWith("event_");
+
+  let textPreview = "";
+  if (event.type === "conversation.item.created" && event.item.role === "user") {
+    textPreview = event.item.content[0].text; // Your speech
+  } else if (event.type === "response.audio_transcript.done") {
+    textPreview = event.transcript; // AI’s full response
+  } else if (event.type === "response.audio_transcript.delta") {
+    textPreview = event.delta; // AI’s incremental response
+  }
 
   return (
     <div className="flex flex-col gap-2 p-2 rounded-md bg-gray-50">
@@ -18,10 +26,14 @@ function Event({ event, timestamp }) {
           <ArrowUp className="text-green-400" />
         )}
         <div className="text-sm text-gray-500">
-          {isClient ? "client:" : "server:"}
-          &nbsp;{event.type} | {timestamp}
+          {isClient ? "client:" : "server:"} {event.type} | {timestamp}
         </div>
       </div>
+      {textPreview && (
+        <div className="text-gray-700 text-sm p-1">
+          {isClient ? "You: " : "AI: "} {textPreview}
+        </div>
+      )}
       <div
         className={`text-gray-500 bg-gray-200 p-2 rounded-md overflow-x-auto ${
           isExpanded ? "block" : "hidden"
@@ -33,15 +45,14 @@ function Event({ event, timestamp }) {
   );
 }
 
-export default function EventLog({ events }) {
+export default function EventLog({ events, conversation }) {
   const eventsToDisplay = [];
   let deltaEvents = {};
 
   events.forEach((event) => {
     if (event.type.endsWith("delta")) {
       if (deltaEvents[event.type]) {
-        // for now just log a single event per render pass
-        return;
+        return; // Skip duplicates
       } else {
         deltaEvents[event.type] = event;
       }
@@ -52,17 +63,45 @@ export default function EventLog({ events }) {
         key={event.event_id}
         event={event}
         timestamp={new Date().toLocaleTimeString()}
-      />,
+      />
     );
   });
 
   return (
-    <div className="flex flex-col gap-2 overflow-x-auto">
-      {events.length === 0 ? (
-        <div className="text-gray-500">Awaiting events...</div>
-      ) : (
-        eventsToDisplay
-      )}
+    <div className="flex flex-col gap-4 overflow-x-auto">
+      Conversation Section
+      <div className="conversation-log p-2 bg-white border border-gray-200 rounded-md">
+        <h3 className="text-lg font-semibold text-gray-700 mb-2">Conversation</h3>
+        {conversation.length === 0 ? (
+          <div className="text-gray-500">No conversation yet...</div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {conversation.map((entry, index) => (
+              <div
+                key={index}
+                className={`p-2 rounded-md ${
+                  entry.role === "user"
+                    ? "bg-blue-100 text-blue-800 self-end"
+                    : "bg-green-100 text-green-800 self-start"
+                }`}
+              >
+                <strong>{entry.role === "user" ? "You: " : "AI: "}</strong>
+                {entry.text}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Event Log Section */}
+      <div className="event-log">
+        <h3 className="text-lg font-semibold text-gray-700 mb-2">Event Log</h3>
+        {events.length === 0 ? (
+          <div className="text-gray-500">Awaiting events...</div>
+        ) : (
+          eventsToDisplay
+        )}
+      </div>
     </div>
   );
 }

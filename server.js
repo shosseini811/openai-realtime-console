@@ -28,11 +28,16 @@ app.get("/token", async (req, res) => {
         body: JSON.stringify({
           model: "gpt-4o-realtime-preview-2024-12-17",
           voice: "verse",
+          input_audio_transcription: {
+            model: "whisper-1", // Specify transcription model
+            language: "en" // Specify language
+          },
         }),
       },
     );
 
     const data = await response.json();
+    console.log("Token Response:", JSON.stringify(data, null, 2)); // Log full response
     res.json(data);
   } catch (error) {
     console.error("Token generation error:", error);
@@ -43,6 +48,7 @@ app.get("/token", async (req, res) => {
 // Render the React client
 app.use("*", async (req, res, next) => {
   const url = req.originalUrl;
+  console.log("Request URL:", url);
 
   try {
     const template = await vite.transformIndexHtml(
@@ -51,6 +57,8 @@ app.use("*", async (req, res, next) => {
     );
     const { render } = await vite.ssrLoadModule("./client/entry-server.jsx");
     const appHtml = await render(url);
+    console.log("App HTML:", appHtml.html);
+
     const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
     res.status(200).set({ "Content-Type": "text/html" }).end(html);
   } catch (e) {
