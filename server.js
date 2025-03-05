@@ -37,7 +37,7 @@ app.get("/token", async (req, res) => {
     );
 
     const data = await response.json();
-    console.log("Token Response:", JSON.stringify(data, null, 2)); // Log full response
+    // console.log("Token Response:", JSON.stringify(data, null, 2)); // Log full response
     res.json(data);
   } catch (error) {
     console.error("Token generation error:", error);
@@ -48,7 +48,7 @@ app.get("/token", async (req, res) => {
 // Render the React client
 app.use("*", async (req, res, next) => {
   const url = req.originalUrl;
-  console.log("Request URL:", url);
+  // console.log("Request URL:", url);
 
   try {
     const template = await vite.transformIndexHtml(
@@ -57,7 +57,7 @@ app.use("*", async (req, res, next) => {
     );
     const { render } = await vite.ssrLoadModule("./client/entry-server.jsx");
     const appHtml = await render(url);
-    console.log("App HTML:", appHtml.html);
+    // console.log("App HTML:", appHtml.html);
 
     const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
     res.status(200).set({ "Content-Type": "text/html" }).end(html);

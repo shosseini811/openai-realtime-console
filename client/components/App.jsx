@@ -17,27 +17,34 @@ export default function App() {
   async function startSession() {
     const tokenResponse = await fetch("/token");
     const data = await tokenResponse.json();
-    console.log("Token Data:", JSON.stringify(data, null, 2));
+    // console.log("Token Data:", JSON.stringify(data, null, 2));
 
     const EPHEMERAL_KEY = data.client_secret.value;
 
     const pc = new RTCPeerConnection();
-    console.log("Peer connection:", pc);
+    // console.log("Peer connection:", pc);
 
     audioElement.current = document.createElement("audio");
     audioElement.current.autoplay = true;
+    // .ontrack is an event handler that gets triggered 
+    // whenever a new media track (audio or video) is received from the remote connection.
+
+    // pc.ontrack = function(e) {
+    //   audioElement.current.srcObject = e.streams[0];
+    // };
     pc.ontrack = (e) => (audioElement.current.srcObject = e.streams[0]);
+    console.log("audioElement.current:", audioElement.current);
 
     const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
     pc.addTrack(ms.getTracks()[0]);
 
     const dc = pc.createDataChannel("oai-events");
-    console.log("Data channel:", dc);
+    // console.log("Data channel:", dc);
     setDataChannel(dc);
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    console.log("Offer:", offer.sdp);
+    // console.log("Offer:", offer.sdp);
 
     const baseUrl = "https://api.openai.com/v1/realtime";
     const model = "gpt-4o-realtime-preview-2024-12-17";
@@ -54,6 +61,7 @@ export default function App() {
     await pc.setRemoteDescription(answer);
 
     peerConnection.current = pc;
+    // console.log("peerConnection.current:", peerConnection.current);
   }
 
   function stopSession() {
@@ -74,11 +82,15 @@ export default function App() {
   }
 
   function sendClientEvent(message) {
+    // Check if dataChannel exists
     if (dataChannel) {
-      console.log("dataChannel:", dataChannel);
+      // console.log("dataChannel:", dataChannel);
       message.event_id = message.event_id || crypto.randomUUID();
+      // print event id
+      // console.log("message.event_id: ", message.event_id);
       dataChannel.send(JSON.stringify(message));
-      console.log("Sending message: ", message);
+      // console.log("Sending message: ", message);
+      // Add the new message to the beginning of the events array, keeping all previous events after it
       setEvents((prev) => [message, ...prev]);
     } else {
       console.error("Failed to send message - no data channel available", message);
@@ -86,6 +98,7 @@ export default function App() {
   }
 
   function sendTextMessage(message) {
+    // Creates a formatted event object with the user's message
     const event = {
       type: "conversation.item.create",
       item: {
@@ -94,20 +107,24 @@ export default function App() {
         content: [{ type: "input_text", text: message }],
       },
     };
-    console.log("event.type: ", event.type);
-    console.log("Sending event: ", event.item.content[0].text);
+    // console.log("event.type: ", event.type);
+    // console.log("Sending event: ", event.item.content[0].text);
     sendClientEvent(event);
     sendClientEvent({ type: "response.create" });
   }
 
   useEffect(() => {
     if (dataChannel) {
+      // (Without Arrow Function) dataChannel.addEventListener("message", function(e) {
       dataChannel.addEventListener("message", (e) => {
+        // print e
+        // console.log("e: ", e);
+
         const eventData = JSON.parse(e.data);
-        console.log("Received Raw Event:", JSON.stringify(eventData, null, 2));
+        // console.log("Received Raw Event:", JSON.stringify(eventData, null, 2));
 
         if (eventData.type === "conversation.item.created") {
-          console.log("Item Object:", JSON.stringify(eventData.item, null, 2));
+          // console.log("Item Object:", JSON.stringify(eventData.item, null, 2));
           if (eventData.item?.role === "user") {
             // Reserve index but do not add entry yet
             transcriptionMap.current[eventData.item.id] = conversation.length;
@@ -120,14 +137,14 @@ export default function App() {
           const delta = eventData.delta;
           if (pendingTranscripts.current[itemId] !== undefined) {
             pendingTranscripts.current[itemId] += delta;
-            console.log("Partial Transcript for", itemId, ":", pendingTranscripts.current[itemId]);
+            // console.log("Partial Transcript for", itemId, ":", pendingTranscripts.current[itemId]);
           }
         }
 
         if (eventData.type === "conversation.item.input_audio_transcription.completed") {
           const itemId = eventData.item_id;
           const transcript = eventData.transcript.trim(); // Final transcript
-          console.log("Transcription Completed:", { itemId, transcript });
+          // console.log("Transcription Completed:", { itemId, transcript });
 
           // Use the final transcript and clear pending
           if (pendingTranscripts.current[itemId] !== undefined) {
@@ -141,7 +158,7 @@ export default function App() {
                 transcriptionMap.current[itemId] = newConv.length - 1;
               }
               delete pendingTranscripts.current[itemId]; // Clear pending transcript
-              console.log("Updated Conversation State:", newConv);
+              // console.log("Updated Conversation State:", newConv);
               return newConv;
             });
           }
@@ -149,7 +166,7 @@ export default function App() {
 
         if (eventData.type === "response.audio_transcript.done") {
           const aiText = eventData.transcript;
-          console.log("Detected AI Response:", aiText);
+          // console.log("Detected AI Response:", aiText);
           setConversation((prev) => [...prev, { role: "assistant", text: aiText }]);
         }
 
@@ -163,8 +180,9 @@ export default function App() {
     }
   }, [dataChannel]);
 
-  console.log("Current Conversation State:", conversation);
-
+  // console.log("Current Conversation State:", conversation);
+  // print events
+  // console.log("events: ", events);
   return (
     <>
       <nav className="absolute top-0 left-0 right-0 h-16 flex items-center">
